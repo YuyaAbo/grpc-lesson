@@ -70,6 +70,10 @@ func (*server) Download(req *pb.DownloadRequest, stream pb.FileService_DownloadS
 	filename := req.GetFilename()
 	path := "/Users/aboy/Develop/grpc-lesson/storage/" + filename
 
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return status.Errorf(codes.NotFound, "file was not found")
+	}
+
 	file, err := os.Open(path)
 	if err != nil {
 		return err
