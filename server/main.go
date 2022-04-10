@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"google.golang.org/grpc"
 	"grpc-lesson/pb"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
+	"os"
+	"time"
 )
 
 type server struct {
@@ -36,6 +39,39 @@ func (*server) ListFiles(ctx context.Context, req *pb.ListFilesRequest) (*pb.Lis
 	}
 
 	return res, nil
+}
+
+func (*server) Download(req *pb.DownloadRequest, stream pb.FileService_DownloadServer) error {
+	fmt.Println("Download was invoked")
+
+	filename := req.GetFilename()
+	path := "/Users/aboy/Develop/grpc-lesson/storage/" + filename
+
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	buf := make([]byte, 5)
+	for {
+		n, err := file.Read(buf)
+		if n == 0 || err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		res := &pb.DownloadResponse{Data: buf[:n]}
+		sendErr := stream.Send(res)
+		if sendErr != nil {
+			return sendErr
+		}
+		time.Sleep(1 * time.Second) // 一瞬で処理が終わるため実験用
+	}
+
+	return nil
 }
 
 func main() {
