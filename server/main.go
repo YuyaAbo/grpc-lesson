@@ -95,7 +95,7 @@ func (*server) Download(req *pb.DownloadRequest, stream pb.FileService_DownloadS
 		if sendErr != nil {
 			return sendErr
 		}
-		time.Sleep(1 * time.Second) // 一瞬で処理が終わるため実験用
+		time.Sleep(3 * time.Second) // 一瞬で処理が終わるため実験用
 	}
 
 	return nil
