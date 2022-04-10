@@ -22,6 +22,7 @@ func main() {
 	callListFiles(client)
 	callDownload(client)
 	callUpload(client)
+	CallUploadAndNotifyProgress(client)
 }
 
 func callListFiles(client pb.FileServiceClient) {
@@ -94,4 +95,65 @@ func callUpload(client pb.FileServiceClient) {
 	}
 
 	log.Printf("received data size: %v", res.GetSize())
+}
+
+func CallUploadAndNotifyProgress(client pb.FileServiceClient) {
+	filename := "sports.txt"
+	path := "/Users/aboy/Develop/grpc-lesson/storage/" + filename
+
+	file, err := os.Open(path)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer file.Close()
+
+	stream, err := client.UploadAndNotifyProgress(context.Background())
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	// request
+	buf := make([]byte, 5)
+	go func() {
+		for {
+			n, err := file.Read(buf)
+			if n == 0 || err == io.EOF {
+				break
+			}
+			if err != nil {
+				log.Fatalln(err)
+			}
+
+			req := &pb.UploadAndNotifyProgressRequest{Data: buf[:n]}
+			sendErr := stream.Send(req)
+			if sendErr != nil {
+				log.Fatalln(sendErr)
+			}
+			time.Sleep(1 * time.Second)
+		}
+
+		err := stream.CloseSend()
+		if err != nil {
+			log.Fatalln(err)
+		}
+	}()
+
+	// response
+	ch := make(chan struct{}) // goroutineを制御するためのチャネルを定義
+	go func() {
+		for {
+			res, err := stream.Recv()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				log.Fatalln(err)
+			}
+
+			log.Printf("received message: %v", res.GetMsg())
+		}
+
+		close(ch)
+	}()
+	<-ch
 }
